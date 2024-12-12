@@ -40,7 +40,17 @@ namespace fri {
     FriConfig& cfg)
   {
     circle_math::LineDomain<fp_config, scalar_t> line_domain = circle_math::LineDomain<fp_config, scalar_t>(line_domain_initial_index, line_domain_log_size);
-    return fri::fold_line_new<scalar_t, q_extension_t, circle_math::LineDomain<fp_config, scalar_t>>(line_eval, line_domain, alpha, folded_evals, n, cfg);
+    scalar_t* domain_elements;
+    auto size = line_domain.size();
+
+    CHK_IF_RETURN(cudaMalloc(&domain_elements, size));
+
+    uint64_t num_threads = max(1, min(unsigned(size), 256));
+    uint64_t num_blocks = (size + num_threads - 1) / num_threads;
+    fri::get_line_domain_values<<<num_blocks, num_threads>>>(line_domain, domain_elements, size);
+
+    cfg.are_domain_elements_on_device = true;
+    return fri::fold_line(line_eval, domain_elements, alpha, folded_evals, n, cfg);
   };
 
   /**
@@ -77,6 +87,17 @@ namespace fri {
     FriConfig& cfg)
   {
     domain_t domain(coset_t(domain_initial_index, domain_log_size));
-    return fri::fold_circle_into_line_new<scalar_t, q_extension_t, domain_t>(circle_evals, domain, alpha, folded_line_evals, n, cfg);
+    scalar_t* domain_elements;
+    auto size = domain.size();
+
+    CHK_IF_RETURN(cudaMalloc(&domain_elements, size));
+
+    uint64_t num_threads = max(1, min(unsigned(size), 256));
+    uint64_t num_blocks = (size + num_threads - 1) / num_threads;
+    fri::get_circle_domain_ys<<<num_blocks, num_threads>>>(domain, domain_elements, size);
+
+    cfg.are_domain_elements_on_device = true;
+
+    return fri::fold_circle_into_line(circle_evals, domain_elements, alpha, folded_line_evals, n, cfg);
   };
 } // namespace fri

@@ -114,6 +114,26 @@ namespace fri {
     }
   } // namespace
 
+  template <typename D, typename S>
+  __global__ void get_line_domain_values(D domain, S*domain_values, uint64_t size)
+  {
+
+    uint64_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size) {
+      domain_values[idx] = S::inverse(domain.at(bit_reverse_index(idx << FOLD_STEP, domain.lg_size())));
+    }
+  }
+
+  template <typename D, typename S>
+  __global__ void get_circle_domain_ys(D domain, S*domain_values, uint64_t size)
+  {
+
+    uint64_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size) {
+      domain_values[idx] = S::inverse(domain.at(bit_reverse_index(idx << FOLD_STEP, domain.lg_size())).y);
+    }
+  }
+
   template <typename S, typename E>
   cudaError_t fold_line(E* eval, S* domain_xs, E alpha, E* folded_eval, uint64_t n, FriConfig& cfg)
   {
