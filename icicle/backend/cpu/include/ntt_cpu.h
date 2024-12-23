@@ -74,29 +74,38 @@ namespace ntt_cpu {
       NttTask<S, E> task(ntt_task_coordinates, ntt_data);
       task.execute();
     } else if (__builtin_expect((ntt_data.logn <= HIERARCHY_1),1)){      
-      uint32_t nof_hierarchy_0_layers = (ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][2] != 0) ? 3 : (ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][1] != 0) ? 2 : 1;
+      uint32_t nof_hierarchy_0_layers = (ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][3] != 0) ? 4 : (ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][2] != 0) ? 3 : (ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][1] != 0) ? 2 : 1;
       for (uint32_t hierarchy_0_layer_idx = 0; hierarchy_0_layer_idx < nof_hierarchy_0_layers; hierarchy_0_layer_idx++) {
         uint64_t nof_blocks;
         uint64_t nof_subntts;
         if (hierarchy_0_layer_idx == 0) {
-          nof_blocks = 1 << ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][2];
+          nof_blocks = 1 << (ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][2]+ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][3]);
           nof_subntts = 1 << ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][1];
         } else if (hierarchy_0_layer_idx == 1) {
-          nof_blocks = 1 << ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][2];
+          nof_blocks = 1 << (ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][2]+ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][3]);
           nof_subntts = 1 << ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][0];
-        } else {
+        } else if (hierarchy_0_layer_idx == 2) {
           nof_blocks = 1 << (ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][0] + ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][1]);
-          nof_subntts = 1;
+          nof_subntts = 1 << ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][3];
+        } else { // if (hierarchy_0_layer_idx == 3)
+          nof_blocks = 1 << (ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][0] + ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][1]);
+          nof_subntts = 1 << ntt_data.ntt_sub_hierarchies.hierarchy_0_layers_sub_logn[0][2];
         }
         #pragma omp parallel for collapse(2) schedule(dynamic)
         for (uint32_t hierarchy_0_block_idx = 0; hierarchy_0_block_idx < (nof_blocks); hierarchy_0_block_idx++) {
           for (uint32_t hierarchy_0_subntt_idx = 0; hierarchy_0_subntt_idx < (nof_subntts); hierarchy_0_subntt_idx++) {
+            // ICICLE_LOG_DEBUG << "hierarchy_0_layer_idx = " << hierarchy_0_layer_idx;
+            // ICICLE_LOG_DEBUG << "hierarchy_0_block_idx = " << hierarchy_0_block_idx;
+            // ICICLE_LOG_DEBUG << "hierarchy_0_subntt_idx = " << hierarchy_0_subntt_idx;
             NttTaskCoordinates ntt_task_coordinates(0, 0, hierarchy_0_layer_idx, hierarchy_0_block_idx, hierarchy_0_subntt_idx, false);
             NttTask<S, E> task(ntt_task_coordinates, ntt_data);
             task.execute();
           }
         }
         if ((hierarchy_0_layer_idx !=0) && (hierarchy_0_layer_idx == nof_hierarchy_0_layers - 1)) { // all ntt tasks in hierarchy 1 are pushed, now push reorder task so that the data
+          // for (int i = 0; i < ntt_data.size; i++) {
+          //   ICICLE_LOG_DEBUG << "out_cpu_pre_reorder[" << i << "] = " << ntt_data.elements[i];
+          // }
                                                                                                     // is in the correct order for the next hierarchy 1 layer
           NttTaskCoordinates ntt_task_coordinates(0, 0, hierarchy_0_layer_idx, 0, 0, true);
           NttTask<S, E> task(ntt_task_coordinates, ntt_data);
